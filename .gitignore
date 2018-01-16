@@ -1,0 +1,13 @@
+
+# IDEA
+.idea/
+*.iml
+*.iws
+
+*/.project
+*/.classpath
+*/.settings/
+
+
+# Maven
+*/target/
