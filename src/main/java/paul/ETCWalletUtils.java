@@ -1,12 +1,17 @@
 package paul;
 
-import org.ethereum.core.Account;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.ethereum.crypto.ECKey;
 import org.spongycastle.util.encoders.Hex;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class ETCWalletUtils {
     private static ETCWalletUtils _instance;
@@ -58,7 +63,7 @@ public class ETCWalletUtils {
         FileOutputStream out = null;
         try {
             out = new FileOutputStream(privKeyfile);
-            out.write(account.getEcKey().getPrivKeyBytes());
+            out.write(Hex.toHexString(account.getEcKey().getPrivKeyBytes()).getBytes("utf-8"));
         } catch (Exception e) {
             fileKeystore.removeKey(Hex.toHexString(account.getAddress()));
             e.printStackTrace();
@@ -90,5 +95,55 @@ public class ETCWalletUtils {
         Account account = new Account();
         account.init(ecKey);
         return account;
+    }
+
+    public Map<String, String> getBalance(byte[] address) {
+        return getBalance("0x" + Hex.toHexString(address));
+    }
+
+    /**
+     * 根据地址信息去 http://gastracker.io 查询 ETC 余额
+     *
+     * @param addressHexString 地址16进制字符串
+     * @return 返回 Map，根据 key 为 Ether 和 Wei，分别查询两个单位的余额
+     */
+    public Map<String, String> getBalance(String addressHexString) {
+        if (!addressHexString.contains("0x"))
+            addressHexString = "0x" + addressHexString;
+
+        OkHttpClient client = new OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .build();
+
+        final Request request = new Request.Builder()
+                .url("http://gastracker.io/addr/" + addressHexString)
+                .build();
+
+        Map<String, String> balanceMsg = new HashMap<>(2);
+        try {
+            Response response = client.newCall(request).execute();
+            String html = response.body().string();
+
+            StringBuilder builderEther = new StringBuilder();
+            StringBuilder builderWei = new StringBuilder();
+
+
+            int index = html.indexOf(" Ether</dd>\n");
+            for (int i = index - 1; "0123456789.".contains("" + html.charAt(i)); i--)
+                builderEther.insert(0, html.charAt(i));
+
+            balanceMsg.put("Ether", builderEther.toString());
+
+            index = html.indexOf(" Wei</dd>", index);
+            for (int i = index - 1; "0123456789.".contains("" + html.charAt(i)); i--)
+                builderWei.insert(0, html.charAt(i));
+
+            balanceMsg.put("Wei", builderWei.toString());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return balanceMsg;
     }
 }
