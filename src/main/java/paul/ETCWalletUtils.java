@@ -102,43 +102,33 @@ public class ETCWalletUtils {
     }
 
     /**
-     * 根据地址信息去 http://gastracker.io 查询 ETC 余额
+     * 根据地址信息去 https://www.etherchain.org 查询 ETC 余额
      *
      * @param addressHexString 地址16进制字符串
-     * @return 返回 Map，根据 key 为 Ether 和 Wei，分别查询两个单位的余额
+     * @return 返回 Map，根据 key 为 ETC 获取
      */
     public Map<String, String> getBalance(String addressHexString) {
         if (!addressHexString.contains("0x"))
             addressHexString = "0x" + addressHexString;
 
         OkHttpClient client = new OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS)
-                .connectTimeout(10, TimeUnit.SECONDS)
+                .connectTimeout(30, TimeUnit.SECONDS)
                 .build();
 
         final Request request = new Request.Builder()
-                .url("http://gastracker.io/addr/" + addressHexString)
+                .url("https://www.etherchain.org/account/" + addressHexString)
                 .build();
 
         Map<String, String> balanceMsg = new HashMap<>(2);
         try {
             Response response = client.newCall(request).execute();
             String html = response.body().string();
-
             StringBuilder builderEther = new StringBuilder();
-            StringBuilder builderWei = new StringBuilder();
 
-
-            int index = html.indexOf(" Ether</dd>\n");
+            int index = html.indexOf(" ETH</p>");
             for (int i = index - 1; "0123456789.".contains("" + html.charAt(i)); i--)
                 builderEther.insert(0, html.charAt(i));
-
-            balanceMsg.put("Ether", builderEther.toString());
-
-            index = html.indexOf(" Wei</dd>", index);
-            for (int i = index - 1; "0123456789.".contains("" + html.charAt(i)); i--)
-                builderWei.insert(0, html.charAt(i));
-
-            balanceMsg.put("Wei", builderWei.toString());
+            balanceMsg.put("ETC", builderEther.toString());
 
         } catch (IOException e) {
             e.printStackTrace();
